@@ -4,9 +4,7 @@
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "vite",
   "functions": {
-    "node": {
-      "version": "18.x"
-    }
+    "node": {}
   },
   "rewrites": [
     {

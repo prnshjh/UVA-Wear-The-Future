@@ -1,4 +1,5 @@
 import React from "react";
+import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,11 +16,14 @@ import Wishlist from "./pages/Wishlist";
 import SearchResults from "./pages/SearchResults";
 import DesignStudio from "./pages/DesignStudio";
 import NotFound from "./pages/NotFound";
+import Careers from "./pages/Careers";
 
 const queryClient = new QueryClient();
 
 // Design Studio route added
 const App = () => (
+  
+  
   <QueryClientProvider client={queryClient}>
     <CartProvider>
       <WishlistProvider>
@@ -35,14 +39,18 @@ const App = () => (
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/search" element={<SearchResults />} />
+            <Route path="/careers" element={<Careers/>} />
+
             <Route path="/design/:productId" element={<DesignStudio />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
+             
           </Routes>
         </BrowserRouter>
       </WishlistProvider>
     </CartProvider>
   </QueryClientProvider>
+  
 );
-
+<Analytics />
 export default App;
