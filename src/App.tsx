@@ -20,7 +20,7 @@ import Careers from "./pages/Careers";
 
 const queryClient = new QueryClient();
 
-// Design Studio route added
+
 const App = () => (
   
   

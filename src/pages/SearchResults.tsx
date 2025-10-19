@@ -198,11 +198,11 @@ const SearchResults = () => {
       try {
         console.log('Searching for:', query); // Debug log
         
-        // Search across name, category, and description
+        // Search by name and description (skip category as it's an ENUM)
         const { data, error } = await supabase
           .from('products')
           .select('*')
-          .or(`name.ilike.%${query}%,category.ilike.%${query}%,description.ilike.%${query}%`);
+          .or(`name.ilike.%${query}%,description.ilike.%${query}%`);
 
         if (error) {
           console.error('Search error:', error);

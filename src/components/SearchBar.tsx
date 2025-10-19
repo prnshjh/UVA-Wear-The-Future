@@ -229,11 +229,11 @@ export const SearchBar = ({ isMobile = false }: SearchBarProps) => {
 
     setIsSearching(true);
     try {
-      // Fixed search query - cast category to text for ENUM compatibility
+      // Search by name and description only (category is ENUM and causes issues with ilike)
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .or(`name.ilike.%${searchQuery}%,category::text.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+        .or(`name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
         .limit(5);
 
       if (error) {
