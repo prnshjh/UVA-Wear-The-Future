@@ -22,10 +22,10 @@ const Contact = () => {
 
     emailjs
       .send(
-        "service_xxxxxxx", // replace with your EmailJS Service ID
-        "template_xxxxxxx", // replace with your EmailJS Template ID
+        "service_ene8m1u", 
+        "template_2zuqp2t",
         formData,
-        "user_xxxxxxx" // replace with your EmailJS Public Key
+        "e2nkymzveQOkHLXX7" 
       )
       .then(() => {
         setIsSending(false);
