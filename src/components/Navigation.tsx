@@ -47,17 +47,21 @@ const Navigation = () => {
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center space-x-6">
               <Link to="/products" className="text-sm font-medium hover:text-accent transition-colors">
-                Shop
+                New Arrival
               </Link>
-              <a href="#new" className="text-sm font-medium hover:text-accent transition-colors">
-                New Arrivals
-              </a>
-              <a href="#ai-tryon" className="text-sm font-medium hover:text-accent transition-colors">
-                AI Try-On
-              </a>
-              <a href="#design" className="text-sm font-medium hover:text-accent transition-colors">
-                Custom Design
-              </a>
+              <Link to="/products?category=Jeans" className="text-sm font-medium hover:text-accent transition-colors">
+                Jeans
+              </Link>
+              <Link to="/products?category=T-Shirts" className="text-sm font-medium hover:text-accent transition-colors">
+                T-Shirts
+              </Link>
+              <Link to="/products?category=Hoodies" className="text-sm font-medium hover:text-accent transition-colors">
+                Hoodies
+              </Link>
+              <Link to="/products?category=Jackets" className="text-sm font-medium hover:text-accent transition-colors">
+                Jackets
+              </Link>
+
             </div>
 
             {/* Actions */}
@@ -127,34 +131,26 @@ const Navigation = () => {
                     <SearchBar isMobile />
                   </div>
                   <div className="flex flex-col space-y-4 mt-6">
-                    <Link 
-                      to="/products" 
-                      className="text-base font-medium hover:text-accent transition-colors"
-                      onClick={() => setMobileSearchOpen(false)}
-                    >
-                      Shop
-                    </Link>
-                    <a 
-                      href="#new" 
+                    <Link
+                      to="/products"
                       className="text-base font-medium hover:text-accent transition-colors"
                       onClick={() => setMobileSearchOpen(false)}
                     >
                       New Arrivals
-                    </a>
-                    <a 
-                      href="#ai-tryon" 
-                      className="text-base font-medium hover:text-accent transition-colors"
-                      onClick={() => setMobileSearchOpen(false)}
-                    >
-                      AI Try-On
-                    </a>
-                    <a 
-                      href="#design" 
-                      className="text-base font-medium hover:text-accent transition-colors"
-                      onClick={() => setMobileSearchOpen(false)}
-                    >
-                      Custom Design
-                    </a>
+                    </Link>
+                    <Link to="/products?category=Jeans" className="text-sm font-medium hover:text-accent transition-colors">
+                      Jeans
+                    </Link>
+                    <Link to="/products?category=T-Shirts" className="text-sm font-medium hover:text-accent transition-colors">
+                      T-Shirts
+                    </Link>
+                    <Link to="/products?category=Hoodies" className="text-sm font-medium hover:text-accent transition-colors">
+                      Hoodies
+                    </Link>
+                    <Link to="/products?category=Jackets" className="text-sm font-medium hover:text-accent transition-colors">
+                      Jackets
+                    </Link>
+
                   </div>
                 </SheetContent>
               </Sheet>

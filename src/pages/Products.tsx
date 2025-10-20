@@ -1,4 +1,7 @@
+
+
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Navigation from "@/components/Navigation";
@@ -34,7 +37,9 @@ const Products = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+ const [searchParams] = useSearchParams();
+const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
   const [priceRange, setPriceRange] = useState<number[]>([0, 100000]);
   const [showTrending, setShowTrending] = useState(false);
   const { toast } = useToast();
@@ -46,6 +51,17 @@ const Products = () => {
   useEffect(() => {
     applyFilters();
   }, [products, selectedCategory, priceRange, showTrending]);
+
+   useEffect(() => {
+  const categoryParam = searchParams.get("category");
+  if (categoryParam) {
+    setSelectedCategory(categoryParam);
+  } else {
+    setSelectedCategory("all");
+    window.scrollTo({ top: 200, behavior: "smooth" });
+  }
+}, [searchParams]);
+
 
   const fetchProducts = async () => {
     try {
