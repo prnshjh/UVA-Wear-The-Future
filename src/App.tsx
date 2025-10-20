@@ -17,13 +17,19 @@ import SearchResults from "./pages/SearchResults";
 import DesignStudio from "./pages/DesignStudio";
 import NotFound from "./pages/NotFound";
 import Careers from "./pages/Careers";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsConditions from "./pages/TermsConditions";
+import RefundPolicy from "./pages/RefundPolicy";
+import Contact from "./pages/Contact";
+import ShippingReturns from "./pages/ShippingReturns";
+import SizeGuide from "./pages/SizeGuide";
 
 const queryClient = new QueryClient();
 
 
 const App = () => (
-  
-  
+
+
   <QueryClientProvider client={queryClient}>
     <CartProvider>
       <WishlistProvider>
@@ -39,17 +45,24 @@ const App = () => (
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/search" element={<SearchResults />} />
-            <Route path="/careers" element={<Careers/>} />
+            <Route path="/careers" element={<Careers />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-conditions" element={<TermsConditions />} />
+            <Route path="/refund-policy" element={<RefundPolicy />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/shipping-returns" element={<ShippingReturns />} />
+            <Route path="/size-guide" element={<SizeGuide />} />
+
 
             <Route path="/design/:productId" element={<DesignStudio />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
-             
+
           </Routes>
         </BrowserRouter>
       </WishlistProvider>
     </CartProvider>
   </QueryClientProvider>
-  
+
 );
 export default App;
