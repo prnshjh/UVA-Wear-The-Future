@@ -1,8 +1,5 @@
-
-
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -20,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
+import { useWishlist } from "@/contexts/WishlistContext"; // ✅ import wishlist context
 
 type Product = {
   id: string;
@@ -37,12 +35,13 @@ const Products = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
- const [searchParams] = useSearchParams();
-const [selectedCategory, setSelectedCategory] = useState<string>("all");
-
+  const [searchParams] = useSearchParams();
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [priceRange, setPriceRange] = useState<number[]>([0, 100000]);
   const [showTrending, setShowTrending] = useState(false);
   const { toast } = useToast();
+
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist(); // ✅ destructure wishlist actions
 
   useEffect(() => {
     fetchProducts();
@@ -52,16 +51,15 @@ const [selectedCategory, setSelectedCategory] = useState<string>("all");
     applyFilters();
   }, [products, selectedCategory, priceRange, showTrending]);
 
-   useEffect(() => {
-  const categoryParam = searchParams.get("category");
-  if (categoryParam) {
-    setSelectedCategory(categoryParam);
-  } else {
-    setSelectedCategory("all");
-    window.scrollTo({ top: 200, behavior: "smooth" });
-  }
-}, [searchParams]);
-
+  useEffect(() => {
+    const categoryParam = searchParams.get("category");
+    if (categoryParam) {
+      setSelectedCategory(categoryParam);
+    } else {
+      setSelectedCategory("all");
+      window.scrollTo({ top: 200, behavior: "smooth" });
+    }
+  }, [searchParams]);
 
   const fetchProducts = async () => {
     try {
@@ -85,24 +83,35 @@ const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const applyFilters = () => {
     let filtered = [...products];
-
     if (selectedCategory !== "all") {
       filtered = filtered.filter((p) => p.category === selectedCategory);
     }
-
     filtered = filtered.filter(
       (p) => p.price >= priceRange[0] && p.price <= priceRange[1]
     );
-
     if (showTrending) {
       filtered = filtered.filter((p) => p.trending);
     }
-
     setFilteredProducts(filtered);
   };
 
-  const formatPrice = (price: number) => {
-    return `₹${(price / 100).toLocaleString("en-IN")}`;
+  const formatPrice = (price: number) => `₹${(price / 100).toLocaleString("en-IN")}`;
+
+  // ✅ handle wishlist toggle (shared logic)
+  const handleWishlistToggle = (productId: string) => {
+    if (isInWishlist(productId)) {
+      removeFromWishlist(productId);
+      toast({
+        title: "Removed from wishlist",
+        description: "Product has been removed from your wishlist.",
+      });
+    } else {
+      addToWishlist(productId);
+      toast({
+        title: "Added to wishlist",
+        description: "Product added to your wishlist!",
+      });
+    }
   };
 
   return (
@@ -207,28 +216,42 @@ const [selectedCategory, setSelectedCategory] = useState<string>("all");
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filteredProducts.map((product) => (
-                    <Card key={product.id} className="overflow-hidden hover-lift transition-all duration-300">
-                      <Link
-                        to={`/products/${product.id}`}
-                        className="group block"
-                      >
-                        <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+                    <Card
+                      key={product.id}
+                      className="overflow-hidden hover-lift transition-all duration-300"
+                    >
+                      <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+                        <Link
+                          to={`/products/${product.id}`}
+                          className="group block"
+                        >
                           <img
                             src={product.images[0] || "/placeholder.svg"}
                             alt={product.name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
-                          <button className="absolute top-4 right-4 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors">
-                            <Heart className="w-5 h-5" />
-                          </button>
-                          {product.trending && (
-                            <Badge className="absolute top-4 left-4 bg-gold text-background">
-                              <Flame className="w-3 h-3 mr-1" />
-                              Trending
-                            </Badge>
-                          )}
-                        </div>
-                      </Link>
+                        </Link>
+
+                        {/* ❤️ Wishlist Button */}
+                        <button
+                          onClick={() => handleWishlistToggle(product.id)}
+                          className="absolute top-4 right-4 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
+                        >
+                          <Heart
+                            className="w-5 h-5"
+                            fill={isInWishlist(product.id) ? "currentColor" : "none"}
+                          />
+                        </button>
+
+                        {/* 🔥 Trending Badge */}
+                        {product.trending && (
+                          <Badge className="absolute top-4 left-4 bg-gold text-background">
+                            <Flame className="w-3 h-3 mr-1" />
+                            Trending
+                          </Badge>
+                        )}
+                      </div>
+
                       <div className="p-4">
                         <Badge variant="outline" className="mb-2">
                           {product.category}
@@ -239,6 +262,7 @@ const [selectedCategory, setSelectedCategory] = useState<string>("all");
                         <p className="text-lg font-bold">
                           {formatPrice(product.price)}
                         </p>
+
                         {product.stock < 10 && product.stock > 0 && (
                           <p className="text-sm text-destructive mt-1">
                             Only {product.stock} left!
@@ -249,19 +273,14 @@ const [selectedCategory, setSelectedCategory] = useState<string>("all");
                             Out of stock
                           </p>
                         )}
+
                         <div className="flex gap-2 mt-3">
-                          <Link
-                            to={`/products/${product.id}`}
-                            className="flex-1"
-                          >
+                          <Link to={`/products/${product.id}`} className="flex-1">
                             <button className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium">
                               View Details
                             </button>
                           </Link>
-                          <Link
-                            to={`/design/${product.id}`}
-                            className="flex-1"
-                          >
+                          <Link to={`/design/${product.id}`} className="flex-1">
                             <button className="w-full px-4 py-2 bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors text-sm font-medium">
                               Customize
                             </button>
