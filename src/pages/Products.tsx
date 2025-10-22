@@ -95,7 +95,7 @@ const Products = () => {
     setFilteredProducts(filtered);
   };
 
-  const formatPrice = (price: number) => `₹${(price / 100).toLocaleString("en-IN")}`;
+  const formatPrice = (price: number) => `₹${(price).toLocaleString("en-IN")}`;
 
   // ✅ handle wishlist toggle (shared logic)
   const handleWishlistToggle = (productId: string) => {

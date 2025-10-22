@@ -6,7 +6,7 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Heart, ShoppingBag, ChevronLeft, Flame } from "lucide-react";
+import { Heart, ShoppingBag, ChevronLeft, Flame, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -85,7 +85,7 @@ const ProductDetail = () => {
   };
 
   const formatPrice = (price: number) => {
-    return `₹${(price / 100).toLocaleString("en-IN")}`;
+    return `₹${(price).toLocaleString("en-IN")}`;
   };
 
   const handleWishlistToggle = () => {
@@ -171,11 +171,10 @@ const ProductDetail = () => {
                     <button
                       key={idx}
                       onClick={() => setSelectedImage(idx)}
-                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-colors ${
-                        selectedImage === idx
+                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-colors ${selectedImage === idx
                           ? "border-primary"
                           : "border-transparent"
-                      }`}
+                        }`}
                     >
                       <img
                         src={img || "/placeholder.svg"}
@@ -250,16 +249,25 @@ const ProductDetail = () => {
                   <ShoppingBag className="w-5 h-5 mr-2" />
                   Add to Cart
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="lg"
                   onClick={handleWishlistToggle}
                   className="transition-all duration-300"
                 >
-                  <Heart 
-                    className="w-5 h-5" 
+                  <Heart
+                    className="w-5 h-5"
                     fill={isInWishlist(product.id) ? "currentColor" : "none"}
                   />
+                </Button>
+                <Button
+                  // onClick={}
+                  variant="outline"
+                  size="lg"
+                  className="transition-all duration-300"
+                >
+                  <Sparkles className="w-5 h-5" />
+
                 </Button>
               </div>
 
