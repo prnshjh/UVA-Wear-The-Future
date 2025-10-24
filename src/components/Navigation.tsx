@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ShoppingBag, User, Menu, LogOut, Wallet, Heart } from "lucide-react";
+import { ShoppingBag, User, Menu, LogOut, Wallet, Heart, CircleUser} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthModal } from "@/components/AuthModal";
 import { SearchBar } from "@/components/SearchBar";
@@ -83,9 +83,9 @@ const Navigation = () => {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/wishlist" className="cursor-pointer">
-                        <Heart className="mr-2 h-4 w-4" />
-                        Wishlist
+                      <Link to="/profile" className="cursor-pointer">
+                        <CircleUser className="mr-2 h-4 w-4" />
+                        Profile
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={signOut}>

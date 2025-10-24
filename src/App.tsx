@@ -23,6 +23,7 @@ import RefundPolicy from "./pages/RefundPolicy";
 import Contact from "./pages/Contact";
 import ShippingReturns from "./pages/ShippingReturns";
 import SizeGuide from "./pages/SizeGuide";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/shipping-returns" element={<ShippingReturns />} />
             <Route path="/size-guide" element={<SizeGuide />} />
+             <Route path="/profile" element={<Profile />} />
 
 
             <Route path="/design/:productId" element={<DesignStudio />} />

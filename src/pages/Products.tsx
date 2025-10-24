@@ -119,15 +119,7 @@ const Products = () => {
       <Navigation />
       <main className="flex-1 pt-20 pb-16">
         <div className="container mx-auto px-4 py-12">
-          {/* Header */}
-          <div className="mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              All Products
-            </h1>
-            <p className="text-muted-foreground text-lg">
-              Discover the future of fashion
-            </p>
-          </div>
+       
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Filters Sidebar */}
