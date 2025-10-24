@@ -83,10 +83,7 @@ const Wishlist = () => {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-12 text-center">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Heart className="h-8 w-8 text-accent" fill="currentColor" />
-              <h1 className="text-4xl md:text-5xl font-bold">My Wishlist</h1>
-            </div>
+            
             <p className="text-muted-foreground text-lg">
               {wishlistItems.length > 0 
                 ? `${wishlistItems.length} item${wishlistItems.length > 1 ? 's' : ''} saved for later`

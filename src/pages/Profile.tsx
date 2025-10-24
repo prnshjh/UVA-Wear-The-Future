@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Package, Truck, CheckCircle, Clock, XCircle, AlertCircle } from "lucide-react";
 
 const Profile = () => {
   const [loading, setLoading] = useState(true);
@@ -28,12 +29,109 @@ const Profile = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [cancellingOrder, setCancellingOrder] = useState(false);
+  const [returningOrder, setReturningOrder] = useState(false);
   const { toast } = useToast();
+  
+  const [userName, setUserName] = useState("");
+  const [orderItemsWithProducts, setOrderItemsWithProducts] = useState<any[]>([]);
 
   useEffect(() => {
     fetchProfile();
     fetchOrders();
   }, []);
+
+  // Fetch user name when order is selected
+  useEffect(() => {
+    if (selectedOrder?.user_id) {
+      fetchUserName(selectedOrder.user_id);
+    }
+  }, [selectedOrder]);
+
+  // Fetch product data when order is selected
+  useEffect(() => {
+    if (selectedOrder?.items) {
+      fetchOrderProducts(selectedOrder.items);
+    }
+  }, [selectedOrder]);
+
+  const fetchUserName = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("name")
+      .eq("id", userId)
+      .single();
+    if (!error && data) setUserName(data.name);
+  };
+
+  const fetchOrderProducts = async (items: any[]) => {
+    if (!items?.length) {
+      setOrderItemsWithProducts([]);
+      return;
+    }
+
+    try {
+      // Get all product IDs from order items
+      const productIds = items.map((item) => item.product_id).filter(Boolean);
+
+      if (productIds.length === 0) {
+        setOrderItemsWithProducts(items);
+        return;
+      }
+
+      // Fetch product data including images
+      const { data: products, error } = await supabase
+        .from("products")
+        .select("id, name, images")
+        .in("id", productIds);
+
+      if (error) {
+        console.error("Error fetching products:", error);
+        setOrderItemsWithProducts(items);
+        return;
+      }
+
+      // Merge product data with order items
+      const mergedItems = items.map((item) => {
+        const product = products?.find((p) => p.id === item.product_id);
+        return {
+          ...item,
+          product: product || null,
+          image: product?.images?.[0] || "/placeholder.svg" // Use first image or placeholder
+        };
+      });
+
+      setOrderItemsWithProducts(mergedItems);
+    } catch (err) {
+      console.error("Error in fetchOrderProducts:", err);
+      setOrderItemsWithProducts(items);
+    }
+  };
+
+  // Function to get image URLs for order preview thumbnails
+  const getOrderPreviewImages = async (items: any[]) => {
+    if (!items?.length) return [];
+
+    const productIds = items.map((item) => item.product_id).filter(Boolean);
+    if (productIds.length === 0) return [];
+
+    try {
+      const { data: products, error } = await supabase
+        .from("products")
+        .select("id, images")
+        .in("id", productIds);
+
+      if (error || !products) return [];
+
+      return items.map(item => {
+        const product = products.find(p => p.id === item.product_id);
+        return product?.images?.[0] || "/placeholder.svg";
+      });
+    } catch (err) {
+      console.error("Error fetching preview images:", err);
+      return [];
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -72,7 +170,22 @@ const Profile = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setOrders(data || []);
+      
+      // Enhance orders with product images for preview
+      const ordersWithImages = await Promise.all(
+        (data || []).map(async (order) => {
+          if (order.items?.length) {
+            const previewImages = await getOrderPreviewImages(order.items);
+            return {
+              ...order,
+              previewImages
+            };
+          }
+          return order;
+        })
+      );
+      
+      setOrders(ordersWithImages);
     } catch (err) {
       toast({
         title: "Error fetching orders",
@@ -143,6 +256,128 @@ const Profile = () => {
     }
   };
 
+  const handleCancelOrder = async (orderId: string) => {
+    if (!confirm("Are you sure you want to cancel this order?")) return;
+    
+    try {
+      setCancellingOrder(true);
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: "cancelled" })
+        .eq("id", orderId);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Order Cancelled",
+        description: "Your order has been cancelled successfully",
+      });
+      
+      fetchOrders();
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder({ ...selectedOrder, status: "cancelled" });
+      }
+    } catch (err) {
+      toast({
+        title: "Error cancelling order",
+        description: String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setCancellingOrder(false);
+    }
+  };
+
+  const handleReturnOrder = async (orderId: string) => {
+    if (!confirm("Are you sure you want to return this order?")) return;
+    
+    try {
+      setReturningOrder(true);
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: "returned" })
+        .eq("id", orderId);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Return Initiated",
+        description: "Your return request has been submitted",
+      });
+      
+      fetchOrders();
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder({ ...selectedOrder, status: "returned" });
+      }
+    } catch (err) {
+      toast({
+        title: "Error processing return",
+        description: String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setReturningOrder(false);
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Clock className="w-5 h-5 text-yellow-500" />;
+      case "packed":
+        return <Package className="w-5 h-5 text-blue-500" />;
+      case "shipped":
+        return <Truck className="w-5 h-5 text-purple-500" />;
+      case "delivered":
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case "cancelled":
+        return <XCircle className="w-5 h-5 text-red-500" />;
+      case "returned":
+        return <AlertCircle className="w-5 h-5 text-orange-500" />;
+      default:
+        return <Clock className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      case "packed":
+        return "bg-blue-100 text-blue-700 border-blue-200";
+      case "shipped":
+        return "bg-purple-100 text-purple-700 border-purple-200";
+      case "delivered":
+        return "bg-green-100 text-green-700 border-green-200";
+      case "cancelled":
+        return "bg-red-100 text-red-700 border-red-200";
+      case "returned":
+        return "bg-orange-100 text-orange-700 border-orange-200";
+      default:
+        return "bg-gray-100 text-gray-700 border-gray-200";
+    }
+  };
+
+  const canCancelOrder = (order: any) => {
+    return order.status !== "delivered" && order.status !== "cancelled" && order.status !== "returned";
+  };
+
+  const canReturnOrder = (order: any) => {
+    if (order.status !== "delivered" || !order.delivered_at) return false;
+    const deliveryDate = new Date(order.delivered_at);
+    const currentDate = new Date();
+    const diffTime = Math.abs(currentDate.getTime() - deliveryDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 5;
+  };
+
+  const getExpectedDeliveryDate = (order: any) => {
+    if (order.delivered_at) return new Date(order.delivered_at);
+    const orderDate = new Date(order.created_at);
+    orderDate.setDate(orderDate.getDate() + 7);
+    return orderDate;
+  };
+
   if (loading)
     return (
       <div className="min-h-screen flex justify-center items-center">
@@ -154,10 +389,9 @@ const Profile = () => {
     <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
       <main className="flex-1 pt-24 pb-20 container mx-auto px-4 grid md:grid-cols-2 gap-8">
-        {/* --- Left: Profile Section --- */}
+        {/* Left: Profile Section */}
         <div className="bg-card rounded-2xl shadow p-6 border border-border space-y-6">
           <div className="flex items-center justify-between">
-          
             {!editing && (
               <Button variant="outline" onClick={() => setEditing(true)}>
                 Edit Profile
@@ -169,6 +403,7 @@ const Profile = () => {
             <img
               src={profile.profile_image_url || "/placeholder.svg"}
               className="w-32 h-32 rounded-full border border-border object-cover"
+              alt="Profile"
             />
             {editing && (
               <Input
@@ -223,189 +458,271 @@ const Profile = () => {
           )}
         </div>
 
-    {/* Orders Section */}
-<div className="md:w-2/3 bg-card rounded-2xl shadow-sm p-6 border border-border">
-  <h2 className="text-2xl font-bold mb-6">My Orders</h2>
+        {/* Right: Orders Section */}
+        <div className="bg-card rounded-2xl shadow p-6 border border-border">
+          <h2 className="text-2xl font-bold mb-6">Orders History</h2>
 
-  {orders.length === 0 ? (
-    <p className="text-muted-foreground text-sm">
-      You haven’t placed any orders yet.
-    </p>
-  ) : (
-    <div className="space-y-4">
-      {orders.map((order) => (
-        <div
-          key={order.id}
-          className="border rounded-xl hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden"
-          onClick={() => setSelectedOrder(order)}
-        >
-          <div className="flex items-center gap-4 p-4">
-            {/* Thumbnail Preview */}
-            <div className="flex -space-x-2">
-              {Array.isArray(order.items) &&
-                order.items.slice(0, 3).map((item: any, idx: number) => (
-                  <img
-                    key={idx}
-                    src={item.image || "/placeholder.svg"}
-                    alt={item.name}
-                    className="w-14 h-14 rounded-lg object-cover border"
-                  />
-                ))}
-              {Array.isArray(order.items) && order.items.length > 3 && (
-                <div className="w-14 h-14 flex items-center justify-center bg-muted rounded-lg text-sm text-muted-foreground">
-                  +{order.items.length - 3}
-                </div>
-              )}
-            </div>
-
-            {/* Order Info */}
-            <div className="flex-1">
-              <div className="flex justify-between items-center">
-                <p className="font-semibold text-lg">
-                  ₹{order.total.toLocaleString("en-IN")}
-                </p>
-                <span
-                  className={`px-3 py-1 text-xs rounded-full ${
-                    order.payment_status === "paid"
-                      ? "bg-green-100 text-green-700"
-                      : order.payment_status === "pending"
-                      ? "bg-yellow-100 text-yellow-700"
-                      : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {order.payment_status.toUpperCase()}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                {new Date(order.created_at).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </p>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="border-t px-4 py-2 flex justify-between text-sm text-muted-foreground">
-            <p>
-              {order.items.length}{" "}
-              {order.items.length === 1 ? "item" : "items"}
+          {orders.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              You haven't placed any orders yet.
             </p>
-            <p className="text-blue-600 font-medium">View Details →</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  )}
-</div>
+          ) : (
+            <div className="space-y-4">
+              {orders.map((order) => (
+                <div
+                  key={order.id}
+                  className="border rounded-xl hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden"
+                  onClick={() => setSelectedOrder(order)}
+                >
+                  <div className="flex items-center gap-4 p-4">
+                    {/* Thumbnail Preview */}
+                    <div className="flex -space-x-2">
+                      {order.previewImages?.slice(0, 3).map((image: string, idx: number) => (
+                        <img
+                          key={idx}
+                          src={image || "/placeholder.svg"}
+                          alt="Product"
+                          className="w-14 h-14 rounded-lg object-cover border-2 border-background"
+                        />
+                      ))}
+                      {order.items?.length > 3 && (
+                        <div className="w-14 h-14 flex items-center justify-center bg-muted rounded-lg text-sm text-muted-foreground border-2 border-background">
+                          +{order.items.length - 3}
+                        </div>
+                      )}
+                    </div>
 
+                    {/* Order Info */}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start mb-2">
+                        <p className="font-semibold text-lg">
+                          ₹{order.total.toLocaleString("en-IN")}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(order.status)}
+                          <span className={`px-3 py-1 text-xs rounded-full border ${getStatusColor(order.status)}`}>
+                            {order.status.toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(order.created_at).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </p>
+                      {order.tracking_id && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Tracking: {order.tracking_id}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t px-4 py-2 flex justify-between text-sm text-muted-foreground">
+                    <p>
+                      {order.items?.length || 0}{" "}
+                      {(order.items?.length || 0) === 1 ? "item" : "items"}
+                    </p>
+                    <p className="text-blue-600 font-medium">View Details →</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
       <Footer />
 
-      {/* --- Order Details Modal --- */}
+      {/* Order Details Modal */}
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-  <DialogContent className="max-w-2xl rounded-2xl">
-    <DialogHeader>
-      <DialogTitle className="text-xl font-semibold">Order Details</DialogTitle>
-    </DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-semibold">Order Details</DialogTitle>
+          </DialogHeader>
 
-    {selectedOrder && (
-      <div className="space-y-6">
-        {/* Order Meta */}
-        <div className="grid md:grid-cols-2 gap-3 border-b pb-3">
-          <div>
-            <p className="text-sm text-muted-foreground">Order ID</p>
-            <p className="font-medium">{selectedOrder.id}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Date</p>
-            <p>{new Date(selectedOrder.created_at).toLocaleString()}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Payment Status</p>
-            <p
-              className={
-                selectedOrder.payment_status === "paid"
-                  ? "text-green-600 font-medium"
-                  : "text-yellow-600 font-medium"
-              }
-            >
-              {selectedOrder.payment_status.toUpperCase()}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Total Amount</p>
-            <p className="font-semibold text-lg">₹{selectedOrder.total}</p>
-          </div>
-        </div>
-
-        {/* Shipping Address */}
-        <div>
-          <h4 className="font-semibold mb-2 text-lg">Shipping Address</h4>
-          <div className="bg-muted p-4 rounded-lg text-sm">
-            <p>{selectedOrder.shipping_address?.line1}</p>
-            {selectedOrder.shipping_address?.line2 && (
-              <p>{selectedOrder.shipping_address.line2}</p>
-            )}
-            <p>
-              {selectedOrder.shipping_address?.city},{" "}
-              {selectedOrder.shipping_address?.state}{" "}
-              {selectedOrder.shipping_address?.pin}
-            </p>
-          </div>
-        </div>
-
-        {/* Ordered Items */}
-        <div>
-          <h4 className="font-semibold mb-2 text-lg">Items</h4>
-          <div className="space-y-3">
-            {Array.isArray(selectedOrder.items) ? (
-              selectedOrder.items.map((item: any, idx: number) => (
-                <div
-                  key={idx}
-                  className="flex justify-between items-center border p-3 rounded-lg"
-                >
+          {selectedOrder && (
+            <div className="space-y-6">
+              {/* Order Status Timeline */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-xl">
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <img
-                      src={item.image || "/placeholder.svg"}
-                      alt={item.name}
-                      className="w-14 h-14 rounded object-cover border"
-                    />
+                    {getStatusIcon(selectedOrder.status)}
                     <div>
-                      <p className="font-medium">{item.name}</p>
+                      <p className="font-semibold text-lg">
+                        Order {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        Qty: {item.quantity || 1}
+                        {selectedOrder.status === "delivered" ? "Delivered on" : "Expected delivery"}:{" "}
+                        {getExpectedDeliveryDate(selectedOrder).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </p>
                     </div>
                   </div>
-                  <p className="font-medium">₹{item.price}</p>
+                  {selectedOrder.tracking_id && (
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Tracking ID</p>
+                      <p className="font-mono text-sm font-medium">{selectedOrder.tracking_id}</p>
+                    </div>
+                  )}
                 </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                No items data found.
-              </p>
-            )}
-          </div>
-        </div>
 
-        {/* Payment Info */}
-        <div className="border-t pt-3 text-sm text-muted-foreground">
-          <p>
-            <strong>Payment ID:</strong>{" "}
-            {selectedOrder.razorpay_payment_id || "—"}
-          </p>
-          <p>
-            <strong>Razorpay Order ID:</strong>{" "}
-            {selectedOrder.razorpay_order_id || "—"}
-          </p>
-        </div>
-      </div>
-    )}
-  </DialogContent>
-</Dialog>
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  {canCancelOrder(selectedOrder) && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleCancelOrder(selectedOrder.id)}
+                      disabled={cancellingOrder}
+                    >
+                      {cancellingOrder ? "Cancelling..." : "Cancel Order"}
+                    </Button>
+                  )}
+                  {canReturnOrder(selectedOrder) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleReturnOrder(selectedOrder.id)}
+                      disabled={returningOrder}
+                    >
+                      {returningOrder ? "Processing..." : "Return Order"}
+                    </Button>
+                  )}
+                  {selectedOrder.status === "delivered" && !canReturnOrder(selectedOrder) && (
+                    <p className="text-xs text-muted-foreground self-center">
+                      Return period expired (5 days limit)
+                    </p>
+                  )}
+                </div>
+              </div>
 
+              {/* Order Meta */}
+              <div className="grid md:grid-cols-2 gap-4 border rounded-lg p-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Order ID</p>
+                  <p className="font-mono text-sm font-medium">{selectedOrder.id.slice(0, 8)}...</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Order Date</p>
+                  <p className="font-medium">
+                    {new Date(selectedOrder.created_at).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Payment Status</p>
+                  <p className={`font-medium ${
+                    selectedOrder.payment_status === "paid"
+                      ? "text-green-600"
+                      : selectedOrder.payment_status === "pending"
+                      ? "text-yellow-600"
+                      : "text-red-600"
+                  }`}>
+                    {selectedOrder.payment_status.toUpperCase()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Amount</p>
+                  <p className="font-bold text-xl">₹{selectedOrder.total.toLocaleString("en-IN")}</p>
+                </div>
+              </div>
+
+              {/* Ordered Items */}
+              <div>
+                <h4 className="font-semibold mb-3 text-lg flex items-center gap-2">
+                  <Package className="w-5 h-5" />
+                  Items Ordered
+                </h4>
+                <div className="space-y-3">
+                  {orderItemsWithProducts.length > 0 ? (
+                    orderItemsWithProducts.map((item: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="flex justify-between items-center border rounded-lg p-4 hover:bg-muted/50 transition"
+                      >
+                        <div className="flex items-center gap-4">
+                          <img
+                            src={item.image || "/placeholder.svg"}
+                            alt={item.product?.name || "Product"}
+                            className="w-16 h-16 rounded-lg object-cover border"
+                          />
+                          <div>
+                            <p className="font-semibold">{item.product?.name || item.name || "Product"}</p>
+                            <div className="flex gap-4 mt-1">
+                              <p className="text-sm text-muted-foreground">
+                                Qty: {item.quantity || 1}
+                              </p>
+                              {item.size && (
+                                <p className="text-sm text-muted-foreground">
+                                  Size: {item.size}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <p className="font-semibold text-lg">₹{(item.price || 0).toLocaleString("en-IN")}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No items data found.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Shipping Address */}
+              <div>
+                <h4 className="font-semibold mb-3 text-lg flex items-center gap-2">
+                  <Truck className="w-5 h-5" />
+                  Shipping Address
+                </h4>
+                <div className="bg-muted/50 p-4 rounded-lg border">
+                  <p className="font-medium">{userName}</p>
+
+                  <p className="mt-1">{selectedOrder.shipping_address?.address_line1}</p>
+                  {selectedOrder.shipping_address?.address_line2 && (
+                    <p>{selectedOrder.shipping_address.address_line2}</p>
+                  )}
+                  <p>
+                    {selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.state}{" "}
+                    {selectedOrder.shipping_address?.pincode}
+                  </p>
+                  {selectedOrder.shipping_address?.phone && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Phone: {selectedOrder.shipping_address.phone}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Payment Info */}
+              <div className="border-t pt-4">
+                <h4 className="font-semibold mb-3 text-sm text-muted-foreground">Payment Information</h4>
+                <div className="grid md:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Payment ID</p>
+                    <p className="font-mono">{selectedOrder.razorpay_payment_id || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Razorpay Order ID</p>
+                    <p className="font-mono">{selectedOrder.razorpay_order_id || "—"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
