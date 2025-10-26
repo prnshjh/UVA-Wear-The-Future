@@ -13,7 +13,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [profile, setProfile] = useState<any>({
+  const [profile, setProfile] = useState({
     name: "",
     phone: "",
     account_number: "",
@@ -24,8 +24,9 @@ const Profile = () => {
     address_line2: "",
     city: "",
     state: "",
-    pin: "",
+    pincode: "",
   });
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -146,11 +147,32 @@ const Profile = () => {
         .single();
 
       if (error && error.code !== "PGRST116") throw error;
-      if (data) setProfile(data);
+      
+      if (data) {
+        // Store the profile ID and set profile data
+        setProfileId(data.id);
+        setProfile({
+          name: data.name || "",
+          phone: data.phone || "",
+          account_number: data.account_number || "",
+          bank_name: data.bank_name || "",
+          ifsc: data.ifsc || "",
+          profile_image_url: data.profile_image_url || "",
+          address_line1: data.address_line1 || "",
+          address_line2: data.address_line2 || "",
+          city: data.city || "",
+          state: data.state || "",
+          pincode: data.pincode || "",
+        });
+      } else {
+        // No profile exists yet, reset profileId
+        setProfileId(null);
+      }
     } catch (err) {
+      console.error("Error fetching profile:", err);
       toast({
         title: "Error loading profile",
-        description: String(err),
+        description: "Failed to load profile data",
         variant: "destructive",
       });
     } finally {
@@ -223,32 +245,67 @@ const Profile = () => {
       }
 
       let imageUrl = profile.profile_image_url;
-      if (imageFile) imageUrl = await uploadProfileImage(imageFile, user.user.id);
+      if (imageFile) {
+        imageUrl = await uploadProfileImage(imageFile, user.user.id);
+      }
 
-      const { error } = await supabase.from("user_profiles").upsert({
+      // Prepare data with proper field names matching the schema
+      const profileData = {
         user_id: user.user.id,
-        name: profile.name,
-        phone: profile.phone,
-        account_number: profile.account_number,
-        bank_name: profile.bank_name,
-        ifsc: profile.ifsc,
-        address_line1: profile.address_line1,
-        address_line2: profile.address_line2,
-        city: profile.city,
-        state: profile.state,
-        pin: profile.pin,
-        profile_image_url: imageUrl,
-        updated_at: new Date(),
-      });
+        name: profile.name || null,
+        phone: profile.phone || null,
+        account_number: profile.account_number || null,
+        bank_name: profile.bank_name || null,
+        ifsc: profile.ifsc || null,
+        address_line1: profile.address_line1 || null,
+        address_line2: profile.address_line2 || null,
+        city: profile.city || null,
+        state: profile.state || null,
+        pincode: profile.pincode || null,
+        profile_image_url: imageUrl || null,
+        updated_at: new Date().toISOString(),
+      };
 
-      if (error) throw error;
-      toast({ title: "Profile updated", description: "Saved successfully" });
+      console.log("Saving profile data:", profileData);
+      console.log("Profile ID:", profileId);
+
+      let error;
+
+      if (profileId) {
+        // Update existing profile
+        const { error: updateError } = await supabase
+          .from("user_profiles")
+          .update(profileData)
+          .eq("id", profileId);
+
+        error = updateError;
+      } else {
+        // Create new profile
+        const { error: insertError } = await supabase
+          .from("user_profiles")
+          .insert([profileData]);
+
+        error = insertError;
+      }
+
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+
+      toast({ 
+        title: "Profile updated", 
+        description: "Your profile has been saved successfully" 
+      });
+      
       fetchProfile();
       setEditing(false);
-    } catch (err) {
+      setImageFile(null);
+    } catch (err: any) {
+      console.error("Save error:", err);
       toast({
         title: "Error saving profile",
-        description: String(err),
+        description: err.message || "Please check your data and try again",
         variant: "destructive",
       });
     } finally {
@@ -378,6 +435,13 @@ const Profile = () => {
     return orderDate;
   };
 
+  const handleInputChange = (field: string, value: string) => {
+    setProfile(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   if (loading)
     return (
       <div className="min-h-screen flex justify-center items-center">
@@ -392,6 +456,7 @@ const Profile = () => {
         {/* Left: Profile Section */}
         <div className="bg-card rounded-2xl shadow p-6 border border-border space-y-6">
           <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Profile Information</h2>
             {!editing && (
               <Button variant="outline" onClick={() => setEditing(true)}>
                 Edit Profile
@@ -426,20 +491,20 @@ const Profile = () => {
               ["Address Line 2", "address_line2"],
               ["City", "city"],
               ["State", "state"],
-              ["PIN Code", "pin"],
+              ["PIN Code", "pincode"],
             ].map(([label, key]) => (
               <div key={key}>
-                <Label>{label}</Label>
+                <Label htmlFor={key}>{label}</Label>
                 {editing ? (
                   <Input
+                    id={key}
                     value={profile[key]}
-                    onChange={(e) =>
-                      setProfile({ ...profile, [key]: e.target.value })
-                    }
+                    onChange={(e) => handleInputChange(key, e.target.value)}
+                    placeholder={`Enter your ${label.toLowerCase()}`}
                   />
                 ) : (
-                  <p className="text-muted-foreground mt-1">
-                    {profile[key] || "—"}
+                  <p className="text-muted-foreground mt-1 px-3 py-2 border border-transparent">
+                    {profile[key] || "Not provided"}
                   </p>
                 )}
               </div>
@@ -448,7 +513,14 @@ const Profile = () => {
 
           {editing && (
             <div className="flex justify-end gap-3 pt-4">
-              <Button variant="outline" onClick={() => setEditing(false)}>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setEditing(false);
+                  fetchProfile(); // Reset to original data
+                  setImageFile(null);
+                }}
+              >
                 Cancel
               </Button>
               <Button onClick={handleSave} disabled={saving}>
