@@ -24,6 +24,7 @@ import Contact from "./pages/Contact";
 import ShippingReturns from "./pages/ShippingReturns";
 import SizeGuide from "./pages/SizeGuide";
 import Profile from "./pages/Profile";
+import AdminPage from "./components/admin/page";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/shipping-returns" element={<ShippingReturns />} />
             <Route path="/size-guide" element={<SizeGuide />} />
              <Route path="/profile" element={<Profile />} />
+             <Route path="/admin" element={<AdminPage />} />
 
 
             <Route path="/design/:productId" element={<DesignStudio />} />
